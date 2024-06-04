@@ -1,0 +1,466 @@
+---
+title: "Lab 09 and 10"
+author: "Graham Irons"
+date: "3/3/2022"
+output: html_document
+---
+
+#### Step 1: Set Global Options and Load Packages
+```{r setup, warning = FALSE, error = FALSE, include = TRUE, message = FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(here)
+library(readxl)
+library(janitor)
+library(USAboundaries)
+library(sf)
+library(ggplot2)
+library(ggpubr)
+library(wesanderson)
+
+```
+
+#### Step 2: Import Water Use Data; Clean Data
+The data for this lab are available from the [United States Geological Survey](https://water.usgs.gov/watuse/data/) for years 1950-2015.
+
+Table 1: “Sets” of data, for which each of the sets have ALL column tags in common. Data from USGS (1950-2015). For Plot 1: Fresh vs Saline Withdrawals for Industrial Surface Water Use.
+Bold indicate major differences between report years. 
+
+| year | fresh | saline | state |
+|:-------:|:------:|:-----------:|:-----------:|
+| 1950-1955 | inpt_wsw_fr  | inpt_wsw_sa | **area** |
+| 1960-1980 | oi_wsw_fr | oi_wsw_sa | **area** |
+| 1985-1990 | in_wswfr | in_wswsa | **scode** |
+| 1995 | in_wsw_fr | in_wsw_sa | **statecode** |
+| 2000-2015 | in_wsw_fr | in_wsw_sa |statefips |
+
+Table 2: “Sets” of data, for which each of the sets have ALL column tags in common. Data from USGS (1950-2015). For Plot 2: Geographical Comparison of Total Surface Water Withdrawals for Industrial Sector by State.
+Bold indicate major differences between report years. 
+
+| year | fresh | saline | state | latitude and longitude |
+|:-------:|:------:|:-----------:|:-----------:|:-----------:|
+| 1950-1955 | inpt_wsw_fr  | inpt_wsw_sa | **area** | lat / lng |
+| 1960-1980 | oi_wsw_fr | oi_wsw_sa | **area** | lat / lng |
+| 1985-1990 | in_wswfr | in_wswsa | **scode** | lat / lng |
+| 1995 | in_wsw_fr | in_wsw_sa | **statecode** | lat / lng |
+| 2000-2015 | in_wsw_fr | in_wsw_sa |statefips | lat / lng |
+
+```{r, message = FALSE, warning = FALSE, error = FALSE, echo = TRUE}
+
+# Read data for 1950-2015
+d_1950 <- lapply(excel_sheets(here("data/us1950.xlsx")),                        #chooses sheet to apply following function to
+                 function(x) read_excel(here("data/us1950.xlsx"), skip = 3, sheet = x)) %>% #
+          reduce(left_join, by = "Area") %>%                                    #join by area column
+          clean_names() %>%                                                     #clean names
+          select(1, 5, 6) %>%                                                   #select important columns
+          mutate(across(2:3, as.numeric)) %>%                                   #set columns as numerics
+          replace(is.na(.), 0)                                                  #change NA to 0     
+
+d_1955 <- lapply(excel_sheets(here("data/us1955.xlsx")), 
+                 function(x) read_excel(here("data/us1955.xlsx"), skip = 3, sheet = x)) %>% 
+          reduce(left_join, by = "Area")%>%                                     #join by area column
+          clean_names()%>%                                                      #clean names
+          select(1, 6, 7) %>%                                                   #select important columns
+          mutate(across(2:3, as.numeric)) %>%                                   #set columns1 as numerics
+          replace(is.na(.), 0)                                                  #change NA to 0                                                           
+
+d_1960 <- lapply(excel_sheets(here("data/us1960.xlsx")), 
+                 function(x) read_excel(here("data/us1960.xlsx"), skip = 3, sheet = x)) %>% 
+          reduce(left_join, by = "Area")%>%                                     #join by area column 
+          clean_names() %>%                                                     #clean names
+          select(1, 15, 16) %>%                                                 #select important columns
+          mutate(across(2:3, as.numeric)) %>%                                   #set columns as numerics
+          replace(is.na(.), 0)                                                  #change NA to 0
+
+d_1965 <- lapply(excel_sheets(here("data/us1965.xlsx")), 
+                 function(x) read_excel(here("data/us1965.xlsx"), skip = 3, sheet = x)) %>% 
+          reduce(left_join, by = "Area")%>%                                     #join by area column 
+          clean_names() %>%                                                     #clean names
+          select(1, 15, 16) %>%                                                 #select important columns
+          mutate(across(2:3, as.numeric)) %>%                                   #set columns as numerics
+          replace(is.na(.), 0)                                                  #change NA to 0
+
+d_1970 <- lapply(excel_sheets(here("data/us1970.xlsx")), 
+                 function(x) read_excel(here("data/us1970.xlsx"), skip = 3, sheet = x)) %>% 
+          reduce(left_join, by = "Area")%>%                                     #join by area column 
+          clean_names() %>%                                                     #clean names
+          select(1, 15, 16) %>%                                                 #select important columns 
+          slice (1:(n() - 5)) %>%                                               #remove last 5 rows from sheet
+          mutate(across(2:3, as.numeric)) %>%                                   #set columns as numerics
+          replace(is.na(.), 0)                                                  #change NA to 0
+          
+d_1975 <- lapply(excel_sheets(here("data/us1975.xlsx")), 
+                 function(x) read_excel(here("data/us1975.xlsx"), skip = 3, sheet = x)) %>% 
+          reduce(left_join, by = "Area")%>%                                     #join by area column 
+          clean_names() %>%                                                     #clean names
+          select(1, 15, 16) %>%                                                 #select important columns
+          mutate(across(2:3, as.numeric)) %>%                                  #set columns as numerics
+          replace(is.na(.), 0)                                                  #change NA to 0
+
+d_1980 <- lapply(excel_sheets(here("data/us1980.xlsx")), 
+                 function(x) read_excel(here("data/us1980.xlsx"), skip = 3, sheet = x)) %>% 
+          reduce(left_join, by = "Area")%>%                                     #join by area column 
+          clean_names() %>%                                                     #clean names
+          select(1, 15, 16) %>%                                                 #select important columns
+          mutate(across(2:3, as.numeric)) %>%                                   #set columns as numerics
+          replace(is.na(.), 0)                                                  #change NA to 0
+
+d_1985 <- read_delim(here("data/us1985.txt"), delim = "\t") %>% 
+          clean_names() %>%                                                     #clean names
+          select(4, 41, 42) %>%                                                 #select important columns 
+          mutate(across(2:3, as.numeric)) %>%                                   #set columns as numerics 
+          replace(is.na(.), 0)                                                  #change NA to 0
+
+d_1990 <- read_excel(here("data/us1990.xls")) %>%                               #load water data
+          clean_names()%>%                                                      #clean names
+          select(4, 41, 42) %>%                                                 #select important columns 
+          slice (1:(n() - 1)) %>%                                               # remove last row from sheet
+          mutate(across(2:3, as.numeric)) %>%                                   #set columns as numerics
+          replace(is.na(.), 0)                                                  #change NA to 0
+
+d_1995 <- read_excel(here("data/us1995.xls")) %>%                               #load water data
+          clean_names() %>%                                                     #clean names
+          select(3, 65, 66) %>%                                                 #select important columns
+          mutate(across(2:3, as.numeric)) %>%                                   #set columns as numerics
+          replace(is.na(.), 0)                                                  #change NA to 0
+
+d_2000 <- read_excel(here("data/us2000.xls")) %>%                               #load water data
+          clean_names() %>%                                                     #clean names
+          select(2, 17, 18) %>%                                                 #select important columns
+          mutate(across(2:3, as.numeric)) %>%                                   #set columns as numerics
+          replace(is.na(.), 0)                                                  #change NA to 0
+
+d_2005 <- read_excel(here("data/us2005.xls")) %>%                               #load water data
+          clean_names() %>%                                                     #clean names 
+          select(2, 28, 29) %>%                                                 #select important columns 
+          mutate(across(2:3, as.numeric)) %>%                                   #set columns as numerics
+          replace(is.na(.), 0)                                                  #change NA to 0
+
+d_2010 <- read_excel(here("data/us2010.xlsx")) %>%                              #load water data
+          clean_names() %>%                                                     #clean names 
+          select(2, 31, 32) %>%                                                 #select important columns 
+          mutate(across(2:3, as.numeric)) %>%                                   #set columns as numerics
+          replace(is.na(.), 0)                                                  #change NA to 0
+
+d_2015 <- read_excel(here("data/us2015.xlsx"), skip = 1) %>%                    #load water data
+          clean_names() %>%                                                     #clean name
+          select(2, 31, 32) %>%                                                 #select important columns 
+          mutate(across(2:3, as.numeric)) %>%                                   #set columns as numerics
+          replace(is.na(.), 0)                                                  #change NA to 0
+
+centroids <- readRDS(here("data/state_centroids.rds"))                          #load centroids data
+
+```
+
+
+#### Step 3: Organize Data by Water Type (Fresh/Saline)
+```{r, message = FALSE, warning = FALSE, error = FALSE, echo = TRUE}
+#Plot 1
+wu_1950 <- d_1950 %>%                                                           #create object that calls on other
+            mutate("State" = area,                                              #rename columns
+                   "Fresh" = inpt_wsw_fr,
+                   "Saline" = inpt_wsw_sa,
+                   "Year" = 1950) %>% 
+            select("State", "Year", "Fresh", "Saline") %>%                      #select new columns
+            pivot_longer(cols = 3:4,                                            #pivot and rename
+                         names_to = "Type",
+                         values_to = "Withdrawals")
+
+wu_1955 <- d_1955 %>%                                                           #create object that calls on other
+            mutate("State" = area,                                              #rename columns
+                   "Fresh" = inpt_wsw_fr,
+                   "Saline" = inpt_wsw_sa,
+                   "Year" = 1955) %>% 
+            select("State", "Year", "Fresh", "Saline") %>%                      #select new columns
+            pivot_longer(cols = 3:4,                                            #pivot and rename
+                         names_to = "Type",
+                         values_to = "Withdrawals")
+
+wu_1960 <- d_1960 %>%                                                           #create object that calls on other
+            mutate("State" = area,                                              #rename columns
+                   "Fresh" = oi_wsw_fr,
+                   "Saline" = oi_wsw_sa,
+                   "Year" = 1960) %>% 
+            select("State", "Year", "Fresh", "Saline") %>%                      #select new columns
+            pivot_longer(cols = 3:4,                                            #pivot and rename
+                         names_to = "Type",
+                         values_to = "Withdrawals")
+
+wu_1965 <- d_1965 %>%                                                           #create object that calls on other
+            mutate("State" = area,                                              #rename columns
+                   "Fresh" = oi_wsw_fr,
+                   "Saline" = oi_wsw_sa,
+                   "Year" = 1965) %>% 
+            select("State", "Year", "Fresh", "Saline") %>%                      #select new columns
+            pivot_longer(cols = 3:4,                                            #pivot and rename
+                         names_to = "Type",
+                         values_to = "Withdrawals")
+
+wu_1970 <- d_1970 %>%                                                           #create object that calls on other
+            mutate("State" = area,                                              #rename columns
+                   "Fresh" = oi_wsw_fr,
+                   "Saline" = oi_wsw_sa,
+                   "Year" = 1970) %>% 
+            select("State", "Year", "Fresh", "Saline") %>%                      #select new columns
+            pivot_longer(cols = 3:4,                                            #pivot and rename
+                         names_to = "Type",
+                         values_to = "Withdrawals")
+
+wu_1975 <- d_1975 %>%                                                           #create object that calls on other
+            mutate("State" = area,                                              #rename columns
+                   "Fresh" = oi_wsw_fr,
+                   "Saline" = oi_wsw_sa,
+                   "Year" = 1975) %>% 
+            select("State", "Year", "Fresh", "Saline") %>%                      #select new columns
+            pivot_longer(cols = 3:4,                                            #pivot and rename
+                         names_to = "Type",
+                         values_to = "Withdrawals")
+
+wu_1980 <- d_1980 %>%                                                           #create object that calls on other
+            mutate("State" = area,                                              #rename columns
+                   "Fresh" = oi_wsw_fr,
+                   "Saline" = oi_wsw_sa,
+                   "Year" = 1980) %>% 
+            select("State", "Year", "Fresh", "Saline") %>%                      #select new columns
+            pivot_longer(cols = 3:4,                                            #pivot and rename
+                         names_to = "Type",
+                         values_to = "Withdrawals")
+
+wu_1985 <- d_1985 %>%                                                           #create object that calls on other
+            mutate("State" = scode,                                             #rename columns
+                   "Fresh" = in_wswfr,
+                   "Saline" = in_wswsa,
+                   "Year" = 1985) %>% 
+            select("State", "Year", "Fresh", "Saline") %>%                      #select new columns
+            group_by(State, Year) %>% 
+            summarize(across(1:2, sum)) %>% 
+            pivot_longer(cols = 3:4,                                            #pivot and rename
+                         names_to = "Type",
+                         values_to = "Withdrawals")
+
+wu_1990 <- d_1990 %>%                                                           #create object that calls on other
+            mutate("State" = scode,                                             #rename columns
+                   "Fresh" = in_wswfr,
+                   "Saline" = in_wswsa,
+                   "Year" = 1990) %>% 
+            select("State", "Year", "Fresh", "Saline") %>%                      #select new columns
+            group_by(State, Year) %>% 
+            summarize(across(1:2, sum)) %>% 
+            pivot_longer(cols = 3:4,                                            #pivot and rename
+                         names_to = "Type",
+                         values_to = "Withdrawals")
+
+wu_1995 <- d_1995 %>%                                                           #create object that calls on other
+            mutate("State" = state_code,                                              #rename columns
+                   "Fresh" = in_wsw_fr,
+                   "Saline" = in_wsw_sa,
+                   "Year" = 1995) %>% 
+            select("State", "Year", "Fresh", "Saline") %>%                      #select new columns
+            group_by(State, Year) %>% 
+            summarize(across(1:2, sum)) %>% 
+            pivot_longer(cols = 3:4,                                            #pivot and rename
+                         names_to = "Type",
+                         values_to = "Withdrawals")
+
+wu_2000 <- d_2000 %>%                                                           #create object that calls on other
+            mutate("State" = statefips,                                              #rename columns
+                   "Fresh" = in_wsw_fr,
+                   "Saline" = in_wsw_sa,
+                   "Year" = 2000) %>% 
+            select("State", "Year", "Fresh", "Saline") %>%                      #select new columns
+            group_by(State, Year) %>% 
+            summarize(across(1:2, sum)) %>% 
+            pivot_longer(cols = 3:4,                                            #pivot and rename
+                         names_to = "Type",
+                         values_to = "Withdrawals")
+
+wu_2005 <- d_2005 %>%                                                           #create object that calls on other
+            mutate("State" = statefips,                                              #rename columns
+                   "Fresh" = in_wsw_fr,
+                   "Saline" = in_wsw_sa,
+                   "Year" = 2005) %>% 
+            select("State", "Year", "Fresh", "Saline") %>%                      #select new columns
+            group_by(State, Year) %>% 
+            summarize(across(1:2, sum)) %>% 
+            pivot_longer(cols = 3:4,                                            #pivot and rename
+                         names_to = "Type",
+                         values_to = "Withdrawals")
+
+wu_2010 <- d_2010 %>%                                                           #create object that calls on other
+            mutate("State" = statefips,                                              #rename columns
+                   "Fresh" = in_wsw_fr,
+                   "Saline" = in_wsw_sa,
+                   "Year" = 2010) %>% 
+            select("State", "Year", "Fresh", "Saline") %>%                      #select new columns
+            group_by(State, Year) %>% 
+            summarize(across(1:2, sum)) %>% 
+            pivot_longer(cols = 3:4,                                            #pivot and rename
+                         names_to = "Type",
+                         values_to = "Withdrawals")
+
+wu_2015 <- d_2015 %>%                                                           #create object that calls on other
+            mutate("State" = statefips,                                              #rename columns
+                   "Fresh" = in_wsw_fr,
+                   "Saline" = in_wsw_sa,
+                   "Year" = 2015) %>% 
+            select("State", "Year", "Fresh", "Saline") %>%                      #select new columns
+            group_by(State, Year) %>% 
+            summarize(across(1:2, sum)) %>% 
+            pivot_longer(cols = 3:4,                                            #pivot and rename
+                         names_to = "Type",
+                         values_to = "Withdrawals")
+
+```
+
+
+#### Step 4: Organize and Combine Data for Plotting
+```{r, warning = FALSE, message = FALSE, error = TRUE, echo = TRUE}
+
+wu_all <- rbind(wu_1960, wu_1965, wu_1970, wu_1975, wu_1980,                    #combine all years into one 
+                wu_1985, wu_1990, wu_1995, wu_2000, wu_2005, wu_2010, wu_2015) %>% #object/omit 1950-55
+          filter(!State %in% c("78", "72", "11")) %>%                           #filter out non-states
+          replace(is.na(.), 0)                                                  #replace NA with 0
+
+wu_all_total <- wu_all %>%                                                      #create total water use per year
+                  group_by(Year) %>%                                            #group by year
+                  summarize(across(3:3, sum))                                   #add up all withdrawals by year
+
+wu_all_type <- wu_all %>%                                                       #create water use by water type
+                  group_by(Type, Year) %>%                                      #group by type and year
+                  summarize(across(2:2, sum))                                   #add up withdrawals
+
+```
+
+#### Step 5: Setup Plot for Timeseries of Industrial Surface Water Withdrawals by Type (Fresh/Saline)
+```{r, warning = FALSE, message = FALSE, error = TRUE, echo = TRUE, fig.width = 10, fig.height = 4}
+
+ggplot() +
+    geom_col(aes(x = Year,                                                      #bar graph/x-axis
+                 y = Withdrawals,                                               #y-axis
+                 fill = reorder(Type, Withdrawals)),                            #order data by type/withdrawals
+             data = wu_all_type,                                                #set data frame
+             position = position_dodge(3.5),                                    #position bars next to each other
+             width = 3.5) +                                                     #set distance between bars
+    geom_line(aes(x = Year,                                                     #line plot/x-axis
+                  y = Withdrawals),                                             #y-axis
+              data = wu_all_total,                                              #set data frame
+              col = "grey",                                                     #set color
+              size = 1) +                                                       #set size
+    geom_point(aes(x = Year,                                                    #point plot/x-axis
+                   y = Withdrawals),                                            #y-axis
+               data = wu_all_total,                                             #set data frame
+               col = "grey",                                                    #set color
+               size = 2) +                                                      #set size
+    ggtitle("Industrial Surface Water Withdrawals by Type from 1960 to 2015") + #create plot title
+    scale_x_continuous(breaks = scales::pretty_breaks(n = 14), expand = c(0, 0)) +#bring columns to x axis
+    scale_y_continuous(breaks = scales::pretty_breaks(n = 10),                  #adds more tick marks to 1st y-axis
+                       labels = scales::comma,                                  #adds commas to numbers
+                       limits = c(0, 40000),                                    #sets limits for y-axis
+                       sec.axis = sec_axis(trans = ~.*2,                        #divide y data by 2
+                                           breaks = scales::pretty_breaks(n = 10), #adds more tick marks to 2nd y-axis
+                                           name = "Total Withdrawals (Mgal/day)",#axis label
+                                           labels = scales::comma),             #adds commas to numbers
+                       expand = c(0, 0)) +                                      #brings columns to y axis
+    labs(caption = "Figure 1: Industrial surface water withdrawals by type (fresh/saline) in the USA 1950-2015. 
+    Data from USGS (1950-2015); created by Graham Irons.",                      #caption
+         x = "Year",                                                            #axis labels
+         y = "Sector Withdrawals (Mgal/day)",                                   #axis label
+         fill = "") +                                                           #no fill label
+    theme_classic() +                                                           #removes background colors
+    theme(legend.position = "top",                                              #set legend position
+          legend.text = element_text(color = "black", size = 8),                #set legend text color/size
+          axis.text = element_text(color = "black", size = 8),                  #set axis text color/size
+          axis.title.y.right = element_text(color = "grey"),                    #set 2nd y-axis title text color/size
+          axis.text.y.right = element_text(color = "grey"),                     #set 2nd y-axis text color/size
+          plot.caption = element_text(hjust = -0.15, size = 10, face = "bold")) +  #set plot position/size/font type
+    scale_fill_manual(values = wes_palette("Zissou1", n = 2))                   #love the Wes Anderson color theme
+    
+  
+
+  
+```
+
+
+#### Step 6: Set up Data for Geospatial Map
+```{r, warning = FALSE, message = FALSE, error = TRUE, echo = TRUE}
+
+conus <- us_states() %>%                                                        #assign conus/call us_states
+          filter(!state_abbr %in% c("AK", "HI", "PR")) %>%                      #filter outliers
+          st_transform(5070) %>%                                                #add lines of parallel to map
+          select(state_name, State = state_abbr)                                #select and rename
+
+centroids_spatial <- centroids %>%                                              #create object
+                      st_as_sf(coords = c("lat", "lng"),                        #set coordinates as lat/lng 
+                               crs = 4326)                                      #convert to sf
+
+us_states <- us_states() %>%                                                    #create object
+              mutate("State" = statefp)                                         #change name for inner_join
+
+total <- wu_1960 %>%                                                            #create object 
+            rbind(wu_2015, by = "Year") %>%                                     #join 2015 data by year
+            mutate(across(4, as.numeric)) %>%                                   #set withdrawals as numeric
+            group_by(State, Year) %>%                                           #group for next function
+            summarize(across(2, sum)) %>%                                       #add up all withdrawals
+            merge(us_states) %>%                                                #add us_states df
+            mutate("State" = stusps) %>%                                        #rename
+            select(1:3) %>%                                                     #select important columns
+            inner_join(conus, by = "State") %>%                                 #add coordinate info
+            st_as_sf(crs = 5070)                                                #convert to sf
+
+```
+
+#### Step 7: Setup Geospatial Map of Industrial Surface Water Withdrawals by Type (Fresh/Saline) over 1960 and 2015
+```{r, warning = FALSE, message = FALSE, error = TRUE, echo = TRUE, fig.width = 10, fig.height = 13}
+
+ggplot() +
+          geom_sf(data = total, aes(fill = Withdrawals), col = "black",         #create map
+                  size = 0.1) +
+          geom_sf_label(data = total, aes(label = State), size = 2) +           #create map label
+          facet_wrap(~Year, nrow = 2, scales = "fixed") +                       #show to maps by year
+          labs(caption = "Figure 3: Total industrial surface water withdrawals. Data from USGS (1960); created by Graham Irons.", #captions
+               x = "Latitude",                                                  #x caption
+               y = "Longitude",                                                 #y caption
+               fill = "Withdrawals (Mgal/day)") +                               #set legend caption
+          theme(axis.text = element_text(color = "grey", size = 6),             #set axis text, color, and size
+                axis.ticks.x = element_blank(),                                 #no x-axis tick marks
+                axis.ticks.y = element_blank(),                                 #no y-axis tick marks
+                panel.background = element_blank(),                             #no background
+                panel.grid.major = element_line(size = 0.1,                     #set grid lines size (lines of parallel)/
+                                                linetype = "solid",             #set grid line linetype
+                                                colour = "lightgrey"),          #set grid line color
+                plot.caption = element_text(hjust = 0,                          #set caption location
+                                            color = "black",                    #set caption color
+                                            size = 9,                           #set caption size
+                                            face = "bold"),                     #set caption font type
+                legend.position = "top",                                        #set legend position
+                legend.title = element_text(size = 10),                         #set legend title size
+                legend.text = element_text(size = 9)) +                         #set legend text size
+          scale_fill_gradient(low = "lightskyblue",                             #set high density color
+                              high = "navy") +                                  #set low density color
+          guides(fill = guide_colourbar(title.position = "top",                 #add legend colorbar/set location
+                                        title.hjust = .5,                       #set legend colorbar position
+                                        ticks = TRUE,                           #add ticks to legend colorbar
+                                        ticks.colour = "white",                 #set legend colorbar tick color
+                                        barwidth = 10,                          #set legend colorbar width
+                                        barheight = .5))                        #set legend colorbar height
+
+
+```
+
+#**Q1: What is the take home message specific each figure that you made?**
+Figure 1 shows that surface water withdrawals have gone down year over year. Figure 2 shows that surface water withdrawals have decreased in most states, but increased in a few. 
+
+#**Q2: Why did you select the data that you did for plot 1?**
+I know that we are slowly running out of surface water so I wanted to see if the degree at which we are withdrawing surface water has increased or decreased over several decades. 
+
+#**Q3: Why did you select the data that you did for plot 2?**
+I wanted to see if there was any correlation between west or east coast states and their total surface water withdrawals. 
+
+#**Q4: What is the most surprising outcome of each figure that you made?**
+Figure 1: I am surprised that surface water withdrawals have decreased over time. 
+Figure 2: I am surprise that the states with higher surface water withdrawals decreased their withdrawals while states with lower initial withdrawals ended up increasing. 
+
+#**Q5: What new functions did you implement to support visualization of the data?**
+facet_wrap() and ggtitle()
+

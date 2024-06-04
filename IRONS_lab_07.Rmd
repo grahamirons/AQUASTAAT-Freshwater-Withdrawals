@@ -1,0 +1,440 @@
+---
+title: "Lab 07"
+author: "Graham Irons"
+date: "2/18/2022"
+output: html_document
+---
+#### Step 1: Set Global Options and Load Packages
+```{r setup, include = FALSE, message = FALSE, warning = FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)                                                              #load libraries
+library(here)
+library(janitor)
+library(readxl)
+```
+
+#### Step 2: Import Water Use Data; Clean Data
+The data for this lab are available from the [United States Geological Survey](https://water.usgs.gov/watuse/data/) for years 1950-2015.
+
+Table 1: “Sets” of data, for which each of the sets have ALL column tags in common. Data from USGS (1950-2015). Bold indicate major differences between report years. 
+
+| year | public supply | irrigation | rural | industrial | thermo | state | 
+|:-------:|:------:|:-----------:|:---------:|:---------:|:---------:|:---------:|
+| 1950-1955 | ps_wgw_fr + ps_wsw_fr | ir_wgw_fr + ir_wsw_fr | **NA** | **inpt_wgw_fr + inpt_wsw_fr** | **NA** | **area** |
+| 1960-1980 | ps_wgw_fr + ps_wsw_fr | ir_wgw_fr + ir_wsw_fr | do_wgw_fr + do_wsw_fr +  ls_wgw_fr + ls_wsw_fr | **oi_wgw_fr + oi_wsw_fr** |pt_wgw_fr + pt_wsw_fr | **area** |
+| **1985-1990** | ps_wgwfr + ps_wswfr | ir_wgwfr + ir_wswfr | **do_ssgwf + do_ssswf +  ls_gwtot + ls_swtot** |in_wgwfr + in_wswfr +  mi_wgwfr + mi_wswfr |pt_wgwfr + pt_wswfr | **scode** |
+| 1995 |ps_wgw_fr + ps_wsw_fr |ir_wgw_fr + ir_wsw_fr |do_wgw_fr + do_wsw_fr +  ls_wgw_fr + ls_wsw_fr |in_wgw_fr + in_wsw_fr +  mi_wgw_fr + mi_wsw_fr |pt_wgw_fr + pt_wsw_fr | **state_code** |
+| 2000 |ps_wgw_fr + ps_wsw_fr | **it_wgw_fr + it_wsw_fr** |do_wgw_fr + do_wsw_fr +  ls_wgw_fr + ls_wsw_fr |in_wgw_fr + in_wsw_fr +  mi_wgw_fr + mi_wsw_fr |pt_wgw_fr + pt_wsw_fr |statefips |
+| 2005 |ps_wgw_fr + ps_wsw_fr |ir_wgw_fr + ir_wsw_fr |do_wgw_fr + do_wsw_fr +  ls_wgw_fr + ls_wsw_fr |in_wgw_fr + in_wsw_fr +  mi_wgw_fr + mi_wsw_fr |pt_wgw_fr + pt_wsw_fr |statefips |
+| 2010-2015 |ps_wgw_fr + ps_wsw_fr |ir_wgw_fr + ir_wsw_fr |do_wgw_fr + do_wsw_fr +  **li_wgw_fr + li_wsw_fr** |in_wgw_fr + in_wsw_fr +  mi_wgw_fr + mi_wsw_fr |pt_wgw_fr + pt_wsw_fr |statefips |
+
+
+```{r, message = FALSE, warning = FALSE, error = TRUE, echo = FALSE}
+
+# Read data for 1950
+d_1950 <- lapply(excel_sheets(here("data/us1950.xlsx")),                        #chooses sheet to apply following function to
+                 function(x) read_excel(here("data/us1950.xlsx"), skip = 3, sheet = x)) %>% #
+          reduce(left_join, by = "Area") %>%                                    #join by area column
+          clean_names() %>%                                                     #clean names
+          select(-7) %>%                                                        #remove column 7
+          mutate(across(2:8, as.numeric)) %>%                                   #set columns as numerics
+          replace(is.na(.), 0)                                                  #change NA to 0                                                            
+d_1955 <- lapply(excel_sheets(here("data/us1955.xlsx")), 
+                 function(x) read_excel(here("data/us1955.xlsx"), skip = 3, sheet = x)) %>% 
+          reduce(left_join, by = "Area")%>%                                     #join by area column
+          clean_names()%>%                                                      #clean names
+          select(-9) %>%                                                        #remove column 9
+          mutate(across(2:10, as.numeric)) %>%                                  #set columns1 as numerics
+          replace(is.na(.), 0)                                                  #change NA to 0                                                           
+
+d_1960 <- lapply(excel_sheets(here("data/us1960.xlsx")), 
+                 function(x) read_excel(here("data/us1960.xlsx"), skip = 3, sheet = x)) %>% 
+          reduce(left_join, by = "Area")%>%                                     #join by area column 
+          clean_names() %>%                                                     #clean names
+          mutate(across(2:35, as.numeric)) %>%                                  #set columns as numerics
+          replace(is.na(.), 0)                                                  #change NA to 0
+
+d_1965 <- lapply(excel_sheets(here("data/us1965.xlsx")), 
+                 function(x) read_excel(here("data/us1965.xlsx"), skip = 3, sheet = x)) %>% 
+          reduce(left_join, by = "Area")%>%                                     #join by area column 
+          clean_names() %>%                                                     #clean names
+          mutate(across(2:33, as.numeric)) %>%                                  #set columns as numerics
+          replace(is.na(.), 0)                                                  #change NA to 0
+
+d_1970 <- lapply(excel_sheets(here("data/us1970.xlsx")), 
+                 function(x) read_excel(here("data/us1970.xlsx"), skip = 3, sheet = x)) %>% 
+          reduce(left_join, by = "Area")%>%                                     #join by area column 
+          clean_names() %>%                                                     #clean names
+          slice (1:(n() - 5)) %>%                                               #remove last 5 rows from sheet
+          mutate(across(2:34, as.numeric)) %>%                                  #set columns as numerics
+          replace(is.na(.), 0)                                                  #change NA to 0
+          
+d_1975 <- lapply(excel_sheets(here("data/us1975.xlsx")), 
+                 function(x) read_excel(here("data/us1975.xlsx"), skip = 3, sheet = x)) %>% 
+          reduce(left_join, by = "Area")%>%                                     #join by area column 
+          clean_names() %>%                                                     #clean names
+          mutate(across(2:34, as.numeric)) %>%                                  #set columns as numerics
+          replace(is.na(.), 0)                                                  #change NA to 0
+
+d_1980 <- lapply(excel_sheets(here("data/us1980.xlsx")), 
+                 function(x) read_excel(here("data/us1980.xlsx"), skip = 3, sheet = x)) %>% 
+          reduce(left_join, by = "Area")%>%                                     #join by area column 
+          clean_names() %>%                                                     #clean names
+          mutate(across(2:34, as.numeric)) %>%                                  #set columns as numerics
+          replace(is.na(.), 0)                                                  #change NA to 0
+
+d_1985 <- read_delim(here("data/us1985.txt"), delim = "\t") %>% 
+          clean_names() %>%                                                     #clean names
+          mutate(across(c(2, 6:163), as.numeric)) %>%                           #set columns as numerics 
+          replace(is.na(.), 0)                                                  #change NA to 0
+
+d_1990 <- read_excel(here("data/us1990.xls")) %>%                               #load water data
+          clean_names()%>% 
+          slice (1:(n() - 1)) %>%                                               # remove last row from sheet
+          mutate(across(6:163, as.numeric)) %>%                                 #set columns as numerics
+          replace(is.na(.), 0)                                                  #change NA to 0
+
+d_1995 <- read_excel(here("data/us1995.xls")) %>%                               #load water data
+          clean_names() %>% 
+          mutate(across(c(1, 6:252), as.numeric)) %>%                                 #set columns as numerics
+          replace(is.na(.), 0)                                                  #change NA to 0
+
+d_2000 <- read_excel(here("data/us2000.xls")) %>%                               #load water data
+          clean_names() %>% 
+          mutate(across(5:70, as.numeric)) %>%                                  #set columns as numerics
+          replace(is.na(.), 0)                                                  #change NA to 0
+
+d_2005 <- read_excel(here("data/us2005.xls")) %>%                               #load water data
+          clean_names() %>% 
+          mutate(across(6:108, as.numeric)) %>%                                 #set columns as numerics
+          replace(is.na(.), 0)                                                  #change NA to 0
+
+d_2010 <- read_excel(here("data/us2010.xlsx")) %>%                              #load water data
+          clean_names() %>% 
+          mutate(across(6:117, as.numeric)) %>%                                 #set columns as numerics
+          replace(is.na(.), 0)                                                  #change NA to 0
+
+d_2015 <- read_excel(here("data/us2015.xlsx"), skip = 1) %>%                    #load water data
+          clean_names() %>% 
+          mutate(across(6:141, as.numeric)) %>%                                 #set columns as numerics
+          replace(is.na(.), 0)                                                  #change NA to 0
+
+```
+
+#### Step 3: Organize data by Sector
+```{r, warning = FALSE, message = FALSE, error = TRUE, echo = TRUE}
+
+#object for d_year that creates sectors using highlighted data from Table 1
+wu_1950 <- d_1950 %>% 
+              mutate("State" = area, 
+                     "Public Supply" = ps_wgw_fr + ps_wsw_fr, 
+                     "Irrigation" = ir_wgw_fr + ir_wsw_fr,
+                     "Rural" = NA,
+                     "Industrial" = inpt_wgw_fr + inpt_wsw_fr,
+                     "Thermoelectric" = NA,
+                     "Year" = 1950) %>% 
+              select(State, "Public Supply", Irrigation, Rural, Industrial, Thermoelectric, Year) %>% 
+              pivot_longer(cols = 2:6,
+                           names_to = "Sector",
+                           values_to = "Withdrawals")
+
+wu_1955 <- d_1955 %>% 
+              mutate("State" = area, 
+                     "Public Supply" = ps_wgw_fr + ps_wsw_fr, 
+                     "Irrigation" = ir_wgw_fr + ir_wsw_fr,
+                     "Rural" = NA,
+                     "Industrial" = inpt_wgw_fr + inpt_wsw_fr,
+                     "Thermoelectric" = NA,
+                     "Year" = 1955) %>% 
+              select(State, "Public Supply", Irrigation, Rural, Industrial, Thermoelectric, Year)%>% 
+              pivot_longer(cols = 2:6,
+                           names_to = "Sector",
+                           values_to = "Withdrawals")
+
+wu_1960 <- d_1960 %>% 
+              mutate("State" = area, 
+                     "Public Supply" = ps_wgw_fr + ps_wsw_fr, 
+                     "Irrigation" = ir_w_fr_to,                                 #ir_w_fr_to is used bc lack of data for fr and sw
+                     "Rural" = do_wgw_fr + do_wsw_fr + ls_wgw_fr + ls_wsw_fr,
+                     "Industrial" = oi_wgw_fr + oi_wsw_fr,
+                     "Thermoelectric" = pt_wgw_fr + pt_wsw_fr,
+                     "Year" = 1960) %>% 
+              select(State, "Public Supply", Irrigation, Rural, Industrial, Thermoelectric, Year)%>% 
+              pivot_longer(cols = 2:6,
+                           names_to = "Sector",
+                           values_to = "Withdrawals")
+
+wu_1965 <- d_1965 %>% 
+              mutate("State" = area, 
+                     "Public Supply" = ps_wgw_fr + ps_wsw_fr, 
+                     "Irrigation" = ir_wgw_fr + ir_wsw_fr,
+                     "Rural" = do_wgw_fr + do_wsw_fr + ls_wgw_fr + ls_wsw_fr,
+                     "Industrial" = oi_wgw_fr + oi_wsw_fr,
+                     "Thermoelectric" = pt_wgw_fr + pt_wsw_fr,
+                     "Year" = 1965) %>% 
+              select(State, "Public Supply", Irrigation, Rural, Industrial, Thermoelectric, Year)%>% 
+              pivot_longer(cols = 2:6,
+                           names_to = "Sector",
+                           values_to = "Withdrawals")
+
+wu_1970 <- d_1970 %>% 
+              mutate("State" = area, 
+                     "Public Supply" = ps_wgw_fr + ps_wsw_fr, 
+                     "Irrigation" = ir_wgw_fr + ir_wsw_fr,
+                     "Rural" = do_wgw_fr + do_wsw_fr + ls_wgw_fr + ls_wsw_fr,
+                     "Industrial" = oi_wgw_fr + oi_wsw_fr,
+                     "Thermoelectric" = pt_wgw_fr + pt_wsw_fr,
+                     "Year" = 1970) %>% 
+              select(State, "Public Supply", Irrigation, Rural, Industrial, Thermoelectric, Year)%>% 
+              pivot_longer(cols = 2:6,
+                           names_to = "Sector",
+                           values_to = "Withdrawals")
+
+wu_1975 <- d_1975 %>% 
+              mutate("State" = area, 
+                     "Public Supply" = ps_wgw_fr + ps_wsw_fr, 
+                     "Irrigation" = ir_wgw_fr + ir_wsw_fr,
+                     "Rural" = do_wgw_fr + do_wsw_fr + ls_wgw_fr + ls_wsw_fr,
+                     "Industrial" = oi_wgw_fr + oi_wsw_fr,
+                     "Thermoelectric" = pt_wgw_fr + pt_wsw_fr,
+                     "Year" = 1975) %>% 
+              select(State, "Public Supply", Irrigation, Rural, Industrial, Thermoelectric, Year)%>% 
+              pivot_longer(cols = 2:6,
+                           names_to = "Sector",
+                           values_to = "Withdrawals")
+
+wu_1980 <- d_1980 %>% 
+              mutate("State" = area, 
+                     "Public Supply" = ps_wgw_fr + ps_wsw_fr, 
+                     "Irrigation" = ir_wgw_fr + ir_wsw_fr,
+                     "Rural" = do_wgw_fr + do_wsw_fr + ls_wgw_fr + ls_wsw_fr,
+                     "Industrial" = oi_wgw_fr + oi_wsw_fr,
+                     "Thermoelectric" = pt_wgw_fr + pt_wsw_fr,
+                     "Year" = 1980) %>% 
+              select(State, "Public Supply", Irrigation, Rural, Industrial, Thermoelectric, Year)%>% 
+              pivot_longer(cols = 2:6,
+                           names_to = "Sector",
+                           values_to = "Withdrawals")
+
+wu_1985 <- d_1985 %>% 
+              mutate("State" = scode, 
+                     "Public Supply" = ps_wgwfr + ps_wswfr, 
+                     "Irrigation" = ir_wgwfr + ir_wswfr,
+                     "Rural" = do_ssgwf + do_ssswf + ls_gwtot + ls_swtot,
+                     "Industrial" = in_wgwfr + in_wswfr + mi_wgwfr + mi_wswfr,
+                     "Thermoelectric" = pt_wgwfr + pt_wswfr	,
+                     "Year" = 1985) %>% 
+              select(State, "Public Supply", Irrigation, Rural, Industrial, Thermoelectric, Year) %>% 
+              group_by(State, Year) %>% 
+              summarize(across(1:5, sum))%>% 
+              pivot_longer(cols = 3:7,
+                           names_to = "Sector",
+                           values_to = "Withdrawals")
+
+wu_1990 <- d_1990 %>% 
+              mutate("State" = scode, 
+                     "Public Supply" = ps_wgwfr + ps_wswfr, 
+                     "Irrigation" = ir_wgwfr + ir_wswfr,
+                     "Rural" = do_ssgwf + do_ssswf + ls_gwtot + ls_swtot,
+                     "Industrial" = in_wgwfr + in_wswfr + mi_wgwfr + mi_wswfr,
+                     "Thermoelectric" = pt_wgwfr + pt_wswfr	,
+                     "Year" = 1990) %>% 
+              select(State, "Public Supply", Irrigation, Rural, Industrial, Thermoelectric, Year) %>% 
+              group_by(State, Year) %>% 
+              summarize(across(1:5, sum))%>% 
+              pivot_longer(cols = 3:7,
+                           names_to = "Sector",
+                           values_to = "Withdrawals")
+
+wu_1995 <- d_1995 %>% 
+              mutate("State" = state_code, 
+                     "Public Supply" = ps_wgw_fr + ps_wsw_fr, 
+                     "Irrigation" = ir_wgw_fr + ir_wsw_fr,
+                     "Rural" = do_wgw_fr + do_wsw_fr + ls_wgw_fr + ls_wsw_fr	,
+                     "Industrial" = in_wgw_fr + in_wsw_fr + mi_wgw_fr + mi_wsw_fr,
+                     "Thermoelectric" = pt_wgw_fr + pt_wsw_fr	,
+                     "Year" = 1995) %>% 
+              select(State, "Public Supply", Irrigation, Rural, Industrial, Thermoelectric, Year) %>% 
+              group_by(State, Year) %>% 
+              summarize(across(1:5, sum))%>% 
+              pivot_longer(cols = 3:7,
+                           names_to = "Sector",
+                           values_to = "Withdrawals")
+
+wu_2000 <- d_2000 %>% 
+              mutate("State" = statefips, 
+                     "Public Supply" = ps_wgw_fr + ps_wsw_fr, 
+                     "Irrigation" = it_wgw_fr + it_wsw_fr	,
+                     "Rural" = do_wgw_fr + do_wsw_fr + ls_wgw_fr + ls_wsw_fr	,
+                     "Industrial" = in_wgw_fr + in_wsw_fr + mi_wgw_fr + mi_wsw_fr,
+                     "Thermoelectric" = pt_wgw_fr + pt_wsw_fr	,
+                     "Year" = 2000) %>% 
+              select(State, "Public Supply", Irrigation, Rural, Industrial, Thermoelectric, Year) %>% 
+              group_by(State, Year) %>% 
+              summarize(across(1:5, sum))%>% 
+              pivot_longer(cols = 3:7,
+                           names_to = "Sector",
+                           values_to = "Withdrawals")
+
+wu_2005 <- d_2005 %>% 
+              mutate("State" = statefips, 
+                     "Public Supply" = ps_wgw_fr + ps_wsw_fr, 
+                     "Irrigation" = ir_wgw_fr + ir_wsw_fr,
+                     "Rural" = do_wgw_fr + do_wsw_fr + ls_wgw_fr + ls_wsw_fr	,
+                     "Industrial" = in_wgw_fr + in_wsw_fr + mi_wgw_fr + mi_wsw_fr,
+                     "Thermoelectric" = pt_wgw_fr + pt_wsw_fr	,
+                     "Year" = 2005) %>% 
+              select(State, "Public Supply", Irrigation, Rural, Industrial, Thermoelectric, Year) %>% 
+              group_by(State, Year) %>% 
+              summarize(across(1:5, sum))%>% 
+              pivot_longer(cols = 3:7,
+                           names_to = "Sector",
+                           values_to = "Withdrawals")
+
+wu_2010 <- d_2010 %>% 
+              mutate("State" = statefips, 
+                     "Public Supply" = ps_wgw_fr + ps_wsw_fr, 
+                     "Irrigation" = ir_wgw_fr + ir_wsw_fr,
+                     "Rural" = do_wgw_fr + do_wsw_fr + li_wgw_fr + li_wsw_fr,
+                     "Industrial" = in_wgw_fr + in_wsw_fr + mi_wgw_fr + mi_wsw_fr,
+                     "Thermoelectric" = pt_wgw_fr + pt_wsw_fr	,
+                     "Year" = 2010) %>% 
+              select(State, "Public Supply", Irrigation, Rural, Industrial, Thermoelectric, Year) %>% 
+              group_by(State, Year) %>% 
+              summarize(across(1:5, sum))%>% 
+              pivot_longer(cols = 3:7,
+                           names_to = "Sector",
+                           values_to = "Withdrawals")
+
+wu_2015 <- d_2015 %>% 
+              mutate("State" = statefips, 
+                     "Public Supply" = ps_wgw_fr + ps_wsw_fr, 
+                     "Irrigation" = ir_wgw_fr + ir_wsw_fr,
+                     "Rural" = do_wgw_fr + do_wsw_fr + li_wgw_fr + li_wsw_fr,
+                     "Industrial" = in_wgw_fr + in_wsw_fr + mi_wgw_fr + mi_wsw_fr,
+                     "Thermoelectric" = pt_wgw_fr + pt_wsw_fr	,
+                     "Year" = 2015) %>% 
+              select(State, "Public Supply", Irrigation, Rural, Industrial, Thermoelectric, Year) %>% 
+              group_by(State, Year) %>% 
+              summarize(across(1:5, sum))%>% 
+              pivot_longer(cols = 3:7,
+                           names_to = "Sector",
+                           values_to = "Withdrawals")
+
+
+```
+
+
+#### Step 4: Organize and Combine Data for Plotting
+```{r, warning = FALSE, message = FALSE, error = TRUE, echo = TRUE}
+
+wu_all <- rbind(wu_1950, wu_1955, wu_1960, wu_1965, wu_1970, wu_1975, wu_1980,
+                wu_1985, wu_1990, wu_1995, wu_2000, wu_2005, wu_2010, wu_2015) %>%
+          filter(!State %in% c("78", "72", "11")) %>% 
+          replace(is.na(.), 0)
+
+dim(wu_all)
+
+wu_all_total <- wu_all %>%                                                      #create total water use
+                  group_by(Year) %>% 
+                  summarize(across(3:3, sum))
+
+wu_all_sector <- wu_all %>%                                                     #create water use by sector
+                  group_by(Sector, Year) %>% 
+                  summarize(across(2:2, sum))
+
+wu_all_check <- wu_all %>%                                                      #create check 
+                  group_by(Sector) %>% 
+                  summarize(across(3:3, sum)) %>% 
+                  arrange(Withdrawals)
+
+
+```
+
+
+#### Step 5: Setup Plot for Timeseries of Sectoral Withdrawals
+```{r, warning = FALSE, message = FALSE, error = TRUE, echo = TRUE, fig.width = 10, fig.height = 4}
+
+ggplot() +
+    geom_col(aes(x = Year,                                                      #bar graph
+                 y = Withdrawals,
+                 fill = reorder(Sector, Withdrawals)),
+             data = wu_all_sector,
+             position = position_dodge(3.5),
+             width = 4)+
+    scale_fill_manual(values = c(Rural = "turquoise4",                          #set bar colors and other aesthetics
+                                "Public Supply" = "deepskyblue3",
+                                Industrial = "red",
+                                Thermoelectric = "darkorange",
+                                Irrigation = "darkgreen")) +
+    geom_line(aes(x = Year,                                                     #line plot
+                  y = Withdrawals/2),
+              data = wu_all_total,
+              col = "grey", 
+              size = 1) +
+    geom_point(aes(x = Year,                                                    #point plot
+                   y = Withdrawals/2),
+               data = wu_all_total,
+               col = "grey",
+               size = 2) +
+    scale_x_continuous(breaks = scales::pretty_breaks(n = 14),                  #adds break lines to the background of the plot
+                       expand = c(0, 0)) +                                      #brings bars all the way over to y-axis         
+    #trans function transforms the scale on the right side by multiple of 2
+    scale_y_continuous(breaks = scales::pretty_breaks(n = 10),                  #adds break lines to the background of the plot
+                       labels = scales::comma,
+                       limits = c(0, 200000),
+                       sec.axis = sec_axis(trans = ~.*2,
+                                           breaks = scales::pretty_breaks(n = 10),
+                                           name = "Total Withdrawals (Mgal/day)",
+                                           labels = scales::comma),
+                       expand = c(0, 0)) +                                      #brings bars all the way down to x-axis
+    labs(caption = "Figure 1: Freshwater Withdrawals in the USA 1950-2015. 
+    Data from USGS (1950-2015); created by Graham Irons.",
+         x = "Year",
+         y = "Sector Withdrawals (Mgal/day)",
+         fill = "") +
+    theme_classic() +                                                           #removes background lines and color / simplifies
+    theme(legend.position = "top",                                              #set theme options
+          legend.text = element_text(color = "black", size = 8),
+          axis.text = element_text(color = "black", size = 8),
+          axis.title.y.right = element_text(color = "grey"),
+          axis.text.y.right = element_text(color = "grey"), 
+          plot.caption = element_text(hjust = -0.15, size = 14, face = "bold"))
+
+
+```
+
+
+#**Q1: What is the take home message specific to Figure 1 with respect to water use by sector over time?**
+Industrial water use has decreased over time. While thermoelectric and public supply have both increased. In recent years, total freshwater withdrawals have decreased slightly.
+
+#**Q2: What is the most surprising outcome to you of Figure 1?**
+The most surprising outcome of Figure 1 is freshwater withdrawals for the thermoelectric sector decreasing because this shows the U.S. is using more renewable energy.
+
+#**Q3: Go to the USGS plot that shows withdrawals by sector (scroll down, the relevant plot is at the bottom); the bars in the USGS plot show different patterns than our plot. How is the plot different and why?**
+USGS includes thermoelectric and rural sectors for 1950-55. Their bars for thermoelectric are greater than ours. One explanation is that they might have combined the data from another sector with this one.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
